@@ -1,0 +1,360 @@
+# IRIS v6.0 - Förenklad och Robust Intelligensrapportering
+# Docker Compose för komplett deployment med svenska datakällor
+
+version: '3.8'
+
+services:
+  # Huvudapplikation
+  iris-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: iris-v6-app
+    ports:
+      - "8000:8000"
+    environment:
+      # Grundinställningar
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - LOG_LEVEL=INFO
+      
+      # Databas
+      - DATABASE_URL=postgresql://iris:${POSTGRES_PASSWORD:-secret}@postgres:5432/iris
+      
+      # Cache
+      - REDIS_URL=redis://redis:6379/0
+      
+      # AI API:er
+      - XAI_API_KEY=${XAI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      
+      # Svenska API nycklar
+      - NEWS_API_KEY=${NEWS_API_KEY:-demo}
+      
+      # GDPR och säkerhet
+      - GDPR_ENABLED=true
+      - SECRET_KEY=${SECRET_KEY:-iris-change-in-production}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
+      
+      # Rate limiting
+      - RATE_LIMIT_PER_MINUTE=60
+      
+      # Lokalisering
+      - DEFAULT_LANGUAGE=sv
+      - TIMEZONE=Europe/Stockholm
+    
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./config:/app/config:ro
+    
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/hälsa"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    networks:
+      - iris-network
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.iris.rule=Host(`iris.localhost`)"
+      - "traefik.http.services.iris.loadbalancer.server.port=8000"
+
+  # PostgreSQL databas
+  postgres:
+    image: postgres:16-alpine
+    container_name: iris-v6-postgres
+    environment:
+      - POSTGRES_DB=iris
+      - POSTGRES_USER=iris
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-secret}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=sv_SE.UTF-8
+    
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    
+    ports:
+      - "5432:5432"  # Endast för utveckling
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iris -d iris"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    
+    networks:
+      - iris-network
+    
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c max_connections=100
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.7
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+
+  # Redis cache
+  redis:
+    image: redis:7-alpine
+    container_name: iris-v6-redis
+    
+    ports:
+      - "6379:6379"  # Endast för utveckling
+    
+    volumes:
+      - redis_data:/data
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    
+    command: redis-server /usr/local/etc/redis/redis.conf
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    
+    networks:
+      - iris-network
+
+  # Nginx Reverse Proxy (valfritt)
+  nginx:
+    image: nginx:alpine
+    container_name: iris-v6-nginx
+    
+    ports:
+      - "80:80"
+      - "443:443"
+    
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/sites-enabled:/etc/nginx/sites-enabled:ro
+      - ./docker/ssl:/etc/ssl/certs:ro
+      - nginx_logs:/var/log/nginx
+    
+    depends_on:
+      - iris-app
+    
+    restart: unless-stopped
+    
+    networks:
+      - iris-network
+
+  # Monitoring och Metrics (Prometheus)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: iris-v6-prometheus
+    
+    ports:
+      - "9090:9090"
+    
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    
+    restart: unless-stopped
+    
+    networks:
+      - iris-network
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    container_name: iris-v6-grafana
+    
+    ports:
+      - "3000:3000"
+    
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./docker/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    
+    depends_on:
+      - prometheus
+    
+    restart: unless-stopped
+    
+    networks:
+      - iris-network
+
+  # Log Management (Loki - valfritt)
+  loki:
+    image: grafana/loki:latest
+    container_name: iris-v6-loki
+    
+    ports:
+      - "3100:3100"
+    
+    volumes:
+      - ./docker/loki/loki.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    
+    command: -config.file=/etc/loki/local-config.yaml
+    
+    restart: unless-stopped
+    
+    networks:
+      - iris-network
+
+  # Backup Service
+  backup:
+    image: postgres:16-alpine
+    container_name: iris-v6-backup
+    
+    environment:
+      - PGPASSWORD=${POSTGRES_PASSWORD:-secret}
+    
+    volumes:
+      - ./backups:/backups
+      - ./docker/backup/backup.sh:/backup.sh:ro
+    
+    depends_on:
+      - postgres
+    
+    command: >
+      sh -c "
+        while true; do
+          sleep 86400  # 24 timmar
+          sh /backup.sh
+        done
+      "
+    
+    restart: unless-stopped
+    
+    networks:
+      - iris-network
+
+# Volumes för persistent data
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/postgres
+  
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/redis
+  
+  prometheus_data:
+    driver: local
+  
+  grafana_data:
+    driver: local
+  
+  loki_data:
+    driver: local
+  
+  nginx_logs:
+    driver: local
+
+# Nätverk
+networks:
+  iris-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# Development override (använd docker-compose -f docker-compose.yml -f docker-compose.dev.yml up)
+---
+# docker-compose.dev.yml för utveckling
+version: '3.8'
+
+services:
+  iris-app:
+    build:
+      target: development
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - DATABASE_URL=sqlite:///./data/iris-dev.db
+    
+    volumes:
+      - .:/app  # Mount hela projektet för hot reload
+      - /app/venv  # Exkludera virtual environment
+    
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    
+    ports:
+      - "8000:8000"
+      - "8001:8001"  # Debug port
+  
+  # Använd SQLite för utveckling - ingen postgres behövs
+  postgres:
+    profiles: ["production-only"]
+  
+  # Enklare Redis för utveckling
+  redis:
+    command: redis-server --appendonly yes --appendfsync everysec
+  
+  # Monitoring services endast i produktion
+  prometheus:
+    profiles: ["production-only"]
+  
+  grafana:
+    profiles: ["production-only"]
+  
+  loki:
+    profiles: ["production-only"]
+  
+  backup:
+    profiles: ["production-only"]
+
+# Kommandohändelser för enkel hantering
+x-scripts:
+  start-dev: &start-dev
+    "docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d"
+  
+  start-prod: &start-prod
+    "docker-compose --profile production up -d"
+  
+  stop: &stop
+    "docker-compose down"
+  
+  logs: &logs
+    "docker-compose logs -f iris-app"
+  
+  backup-db: &backup-db
+    "docker-compose exec backup sh /backup.sh"
+  
+  shell: &shell
+    "docker-compose exec iris-app bash"

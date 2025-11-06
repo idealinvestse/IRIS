@@ -1,0 +1,138 @@
+# IRIS v6.0 - Svenska Datakällor Konfiguration
+# Officiella svenska datakällor för intelligensrapportering
+
+svenska_källor:
+  scb:
+    namn: "Statistiska centralbyrån"
+    url: "https://api.scb.se/OV0104/v1/doris/sv/ssd/"
+    typ: "statistik"
+    beskrivning: "Sveriges officiella statistik - befolkning, ekonomi, arbetsmarknad"
+    cache: 3600  # 1 timme
+    tillförlitlighet: "mycket hög"
+    språk: "svenska"
+    gdpr_kompatibel: true
+    kräver_api_nyckel: false
+    
+    # Tillgängliga datakategorier
+    kategorier:
+      - "Befolkning och befolkningsförändringar"
+      - "Arbetslöshet och sysselsättning"
+      - "BNP och ekonomisk tillväxt"
+      - "Inflation och priser"
+      - "Utbildning"
+      - "Hälsa och sjukvård"
+    
+    # Rate limits
+    rate_limit:
+      requests_per_minute: 60
+      burst: 10
+  
+  omx:
+    namn: "OMX Stockholm"
+    url: "https://query1.finance.yahoo.com/v8/finance/chart/^OMX"
+    typ: "finansiell"
+    beskrivning: "Stockholmsbörsens huvudindex - real-time börsdata"
+    cache: 300  # 5 minuter
+    tillförlitlighet: "hög"
+    språk: "engelska/svenska"
+    gdpr_kompatibel: true
+    kräver_api_nyckel: false
+    
+    # Data som tillhandahålls
+    data_fields:
+      - "Aktuellt pris"
+      - "Föregående stängning"
+      - "Daglig förändring (%)"
+      - "Volym"
+      - "52-veckors högsta/lägsta"
+    
+    # Uppdateringsfrekvens
+    update_frequency: "real-time (börstider)"
+    trading_hours: "09:00-17:30 CET"
+  
+  svenska_nyheter:
+    namn: "Svenska Nyheter"
+    url: "https://newsdata.io/api/1/news"
+    typ: "nyheter"
+    beskrivning: "Aktuella svenska nyheter från ledande medier"
+    cache: 900  # 15 minuter
+    tillförlitlighet: "medel-hög"
+    språk: "svenska"
+    gdpr_kompatibel: true
+    kräver_api_nyckel: true
+    api_nyckel_env: "NEWS_API_KEY"
+    
+    # Filtreringsalternativ
+    filters:
+      country: "se"
+      language: "sv"
+      max_results: 10
+    
+    # Källor
+    sources:
+      - "DN (Dagens Nyheter)"
+      - "SvD (Svenska Dagbladet)"
+      - "Aftonbladet"
+      - "Expressen"
+      - "SVT Nyheter"
+    
+    # Rate limits
+    rate_limit:
+      requests_per_day: 200  # Free tier
+      requests_per_minute: 10
+  
+  smhi:
+    namn: "SMHI Väderdata"
+    url: "https://opendata-download-metfcst.smhi.se/api"
+    typ: "väder"
+    beskrivning: "Sveriges Meteorologiska och Hydrologiska Institut - officiell väderdata"
+    cache: 1800  # 30 minuter
+    tillförlitlighet: "mycket hög"
+    språk: "svenska"
+    gdpr_kompatibel: true
+    kräver_api_nyckel: false
+    
+    # Väderprognoser
+    forecast_types:
+      - "Temperatur"
+      - "Nederbörd"
+      - "Vindhastighet"
+      - "Molnighet"
+      - "Luftfuktighet"
+    
+    # Geografisk täckning
+    coverage: "Hela Sverige med hög precision"
+    resolution: "1x1 km rutnät"
+    forecast_length: "10 dagar"
+    
+    # Uppdateringsfrekvens
+    update_frequency: "Varje timme"
+
+# Prioritering av källor baserat på typ av fråga
+prioritering:
+  ekonomi:
+    - omx
+    - scb
+  
+  väder:
+    - smhi
+  
+  nyheter:
+    - svenska_nyheter
+    - scb  # För statistik relaterad till nyheter
+  
+  statistik:
+    - scb
+  
+  allmänt:
+    - scb
+    - omx
+    - svenska_nyheter
+    - smhi
+
+# Fallback-strategi när källor är otillgängliga
+fallback:
+  enabled: true
+  max_failures_before_disable: 5
+  retry_after_seconds: 300  # 5 minuter
+  graceful_degradation: true

@@ -1,0 +1,167 @@
+# IRIS v6.0 - AI Models Configuration
+# Centraliserad modellkonfiguration för enkel hantering
+
+ai_models:
+  # Groq Cloud Models
+  kimi-k2:
+    namn: "Kimi K2 Instruct"
+    provider: "groq"
+    model_id: "moonshotai/kimi-k2-instruct-0905"
+    beskrivning: "Kimi K2 - Snabb och kraftfull modell för svenska frågor"
+    max_tokens: 8192
+    default_temperature: 0.6
+    supports_streaming: true
+    hastighet: "mycket snabb"
+    kostnad: "låg"
+    rekommenderad_för:
+      - "snabba svar"
+      - "real-time analys"
+      - "svenska frågor"
+    
+  llama-3-70b:
+    namn: "Llama 3 70B"
+    provider: "groq"
+    model_id: "llama-3.1-70b-versatile"
+    beskrivning: "Meta Llama 3.1 70B - Balanserad och mångsidig"
+    max_tokens: 8192
+    default_temperature: 0.7
+    supports_streaming: true
+    hastighet: "snabb"
+    kostnad: "medel"
+    rekommenderad_för:
+      - "komplexa analyser"
+      - "kreativ text"
+      - "problemlösning"
+  
+  llama-3-8b:
+    namn: "Llama 3 8B"
+    provider: "groq"
+    model_id: "llama-3.1-8b-instant"
+    beskrivning: "Meta Llama 3.1 8B - Blixtsnabb och effektiv"
+    max_tokens: 8192
+    default_temperature: 0.6
+    supports_streaming: true
+    hastighet: "extremt snabb"
+    kostnad: "mycket låg"
+    rekommenderad_för:
+      - "enkla frågor"
+      - "snabba svar"
+      - "hög volym"
+  
+  mixtral-8x7b:
+    namn: "Mixtral 8x7B"
+    provider: "groq"
+    model_id: "mixtral-8x7b-32768"
+    beskrivning: "Mixtral 8x7B - Stor kontext, bra prestanda"
+    max_tokens: 32768
+    default_temperature: 0.7
+    supports_streaming: true
+    hastighet: "snabb"
+    kostnad: "medel"
+    rekommenderad_för:
+      - "lång kontext"
+      - "dokumentanalys"
+      - "sammanfattningar"
+  
+  # xAI Models
+  grok-beta:
+    namn: "Grok Beta"
+    provider: "xai"
+    model_id: "grok-beta"
+    beskrivning: "xAI Grok - Avancerad modell med realtidsdata"
+    max_tokens: 4096
+    default_temperature: 0.7
+    supports_streaming: false
+    hastighet: "medel"
+    kostnad: "medel"
+    rekommenderad_för:
+      - "komplexa analyser"
+      - "aktuell information"
+      - "djup förståelse"
+  
+  grok-vision-beta:
+    namn: "Grok Vision Beta"
+    provider: "xai"
+    model_id: "grok-vision-beta"
+    beskrivning: "xAI Grok Vision - Multimodal med bildsupport"
+    max_tokens: 4096
+    default_temperature: 0.7
+    supports_streaming: false
+    supports_vision: true
+    hastighet: "medel"
+    kostnad: "hög"
+    rekommenderad_för:
+      - "bildanalys"
+      - "multimodal data"
+      - "visuell förståelse"
+  
+  # Lokal Model
+  lokal:
+    namn: "Lokal Regelbaserad"
+    provider: "lokal"
+    model_id: "lokal"
+    beskrivning: "Regelbaserad lokal AI utan externa API:er"
+    max_tokens: 1000
+    default_temperature: 0.0
+    supports_streaming: true
+    hastighet: "extremt snabb"
+    kostnad: "gratis"
+    privat: true
+    rekommenderad_för:
+      - "privata frågor"
+      - "GDPR-strikt"
+      - "offline användning"
+
+# Profil-till-modell mappningar
+profil_modeller:
+  snabb:
+    primär: "kimi-k2"
+    alternativ:
+      - "llama-3-8b"
+      - "llama-3-70b"
+    fallback: "lokal"
+  
+  smart:
+    primär: "kimi-k2"
+    alternativ:
+      - "llama-3-70b"
+      - "grok-beta"
+      - "mixtral-8x7b"
+    fallback: "lokal"
+  
+  privat:
+    primär: "lokal"
+    alternativ: []
+    fallback: "lokal"
+
+# Användningsfall-till-modell rekommendationer
+användningsfall:
+  snabba_svar:
+    rekommenderade_modeller:
+      - "llama-3-8b"
+      - "kimi-k2"
+    beskrivning: "För snabba, enkla frågor"
+  
+  komplexa_analyser:
+    rekommenderade_modeller:
+      - "llama-3-70b"
+      - "grok-beta"
+      - "mixtral-8x7b"
+    beskrivning: "För djupgående analys och komplexa frågor"
+  
+  dokumentanalys:
+    rekommenderade_modeller:
+      - "mixtral-8x7b"
+      - "llama-3-70b"
+    beskrivning: "För analys av långa dokument"
+  
+  privat_känslig_data:
+    rekommenderade_modeller:
+      - "lokal"
+    beskrivning: "För GDPR-strikt och privat data"
+  
+  real_time:
+    rekommenderade_modeller:
+      - "kimi-k2"
+      - "llama-3-8b"
+    beskrivning: "För realtidsdata och snabba uppdateringar"
