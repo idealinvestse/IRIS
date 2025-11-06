@@ -22,11 +22,12 @@ IRIS v6.0 är en förenklad och robust version av intelligensrapporteringssystem
 - **Smart** (3-7s): xAI Grok för balanserad analys med flera datakällor  
 - **Privat** (5-15s): Helt lokal regelbaserad bearbetning utan externa API:er
 
-### 🤖 AI-Providers
-- **Groq Cloud**: Kimi K2 modell med streaming-support (primär för snabb profil)
-- **xAI Grok**: Djup analys och reasoning (smart profil)
+### 🤖 AI-Providers med Multi-Provider Fallback
+- **Groq Cloud**: Flera modeller inkl. Kimi K2, Llama 3 med streaming-support
+- **xAI Grok**: Grok Beta och Grok Vision för djup analys
 - **Lokal AI**: Regelbaserad fallback utan externa anrop (privat profil)
 - **Automatisk Fallback**: Groq → xAI → Lokal för maximal tillförlitlighet
+- **Centraliserad Konfiguration**: `config/models.yaml` för enkel modellhantering
 
 ### 🇸🇪 Svenska Datakällor (Prioriterade)
 - **SCB (Statistiska centralbyrån)**: Officiell svensk statistik
@@ -55,6 +56,10 @@ nano .env  # Redigera med dina API-nycklar
 
 ### 2. Konfigurera API-nycklar
 ```bash
+# Kopiera template-filen
+cp .env.template .env
+
+# Redigera .env med dina API-nycklar
 # AI Providers (välj minst en)
 GROQ_API_KEY=gsk_din_groq_api_nyckel_här  # Rekommenderad för snabb profil
 XAI_API_KEY=xai-din_xai_api_nyckel_här    # För smart profil
@@ -66,6 +71,8 @@ GDPR_ENABLED=true
 # Valfria API-nycklar för förbättrad funktionalitet
 NEWS_API_KEY=din-newsdata-api-nyckel
 POSTGRES_PASSWORD=säkert-lösenord
+
+# VIKTIGT: Spara aldrig .env i version control!
 ```
 
 ### 3. Starta Systemet
@@ -195,13 +202,14 @@ iris-v6/
 │   ├── main.py              # FastAPI huvudapplikation
 │   ├── core/
 │   │   ├── config.py        # Konfigurationshantering
+│   │   ├── model_config.py  # ⭐ Model Configuration Manager
 │   │   ├── database.py      # Databasabstraktion
 │   │   └── security.py      # Säkerhet och GDPR
 │   ├── services/
 │   │   ├── ai_providers/        # ⭐ Multi-provider AI
 │   │   │   ├── base.py          # Provider interface
-│   │   │   ├── groq_provider.py # Groq Kimi K2
-│   │   │   ├── xai_provider.py  # xAI Grok
+│   │   │   ├── groq_provider.py # Groq (Kimi K2, Llama, Mixtral)
+│   │   │   ├── xai_provider.py  # xAI (Grok, Grok Vision)
 │   │   │   ├── local_provider.py # Lokal AI
 │   │   │   └── factory.py       # Provider factory
 │   │   ├── data_collector.py    # Datainhämtning
@@ -212,24 +220,30 @@ iris-v6/
 │   │   ├── briefing.py      # Datamodeller
 │   │   └── user.py          # Användarmodeller
 │   └── utils/
+│       ├── model_manager_cli.py # ⭐ CLI för modellhantering
 │       ├── nlp_swedish.py   # Svensk språkbehandling
 │       └── error_handling.py   # Robust felhantering
 ├── config/
+│   ├── models.yaml          # ⭐ Centraliserad modellkonfiguration
 │   ├── profiles.yaml        # AI-profilkonfiguration
 │   └── sources.yaml         # Datakäll-konfiguration
+├── docs/
+│   └── MODEL_CONFIGURATION.md  # Modell-konfigurationsguide
 ├── tests/
 │   ├── test_api.py          # API-tester
-│   ├── test_groq_provider.py # ⭐ Groq-tester
-│   ├── test_profiles.py     # Profiltester
-│   └── test_swedish.py      # Svenska språktester
-├── docker/
-│   ├── nginx/              # Nginx-konfiguration
-│   ├── postgres/           # PostgreSQL-setup
-│   └── monitoring/         # Prometheus/Grafana
+│   ├── test_model_config.py # ⭐ Model config-tester
+│   ├── test_ai_providers_comprehensive.py # Provider-tester
+│   └── test_swedish_sources.py # Svenska källtester
+├── examples/
+│   └── model_config_examples.py # Exempel på modellkonfiguration
+├── .env.template            # Mall för miljövariabler (säker)
+├── .gitignore              # Git ignore-regler
 ├── requirements.txt
 ├── docker-compose.yml
 ├── Dockerfile
-└── README.md
+├── CODING_GUIDELINES.md    # Kodriktlinjer
+├── TESTING.md             # Testningsguide
+└── README.md              # Denna fil
 ```
 
 ### Testning
@@ -240,57 +254,76 @@ pytest tests/ -v
 # Kör med täckningsrapport
 pytest tests/ --cov=src --cov-report=html
 
-# Testa Groq provider (kräver GROQ_API_KEY)
-export GROQ_API_KEY=gsk_din_nyckel
-pytest tests/test_groq_provider.py -v
+# Testa model configuration
+pytest tests/test_model_config.py -v
 
-# Testa specifik profil
-pytest tests/test_profiles.py::test_snabb_profil -v
+# Testa alla AI providers
+pytest tests/test_ai_providers_comprehensive.py -v
+
+# Testa med riktiga API-nycklar (sätt miljövariabler först)
+export GROQ_API_KEY=gsk_...
+export XAI_API_KEY=xai-...
+pytest tests/ -v --runreal
 ```
 
-## 🚀 Groq Cloud Integration (Nytt!)
+**Läs mer:** Se `TESTING.md` för fullständig testningsguide.
 
-### Snabbstart med Groq Kimi K2
+## 🎛️ Model Configuration System
 
-IRIS v6.0 använder nu Groq Cloud med Kimi K2-modellen för ultrasnabba AI-svar!
+IRIS v6.0 har ett kraftfullt centraliserat system för att hantera AI-modeller.
 
-#### 1. Skaffa Groq API-nyckel
-```bash
-# Gå till https://console.groq.com
-# Registrera dig och skapa en API-nyckel
+### Konfigurera Modeller
+
+Alla AI-modeller definieras i `config/models.yaml`:
+
+```yaml
+ai_models:
+  kimi-k2:
+    namn: "Kimi K2 Instruct"
+    provider: "groq"
+    model_id: "moonshotai/kimi-k2-instruct-0905"
+    beskrivning: "Ultrasnabb modell från Moonshot AI"
+    max_tokens: 4096
+    default_temperature: 0.6
+    supports_streaming: true
+    hastighet: "mycket_snabb"
+    kostnad: "låg"
 ```
 
-#### 2. Konfigurera
-```bash
-# Lägg till i .env
-GROQ_API_KEY=gsk_din_groq_api_nyckel_här
-```
+### Hantera Modeller via CLI
 
-#### 3. Använd Snabb Profil
 ```bash
-curl -X POST http://localhost:8000/analysera \
-  -H "Content-Type: application/json" \
-  -d '{"query": "Vad är OMX-kursen?", "profil": "snabb"}'
+# Lista alla modeller
+python -m src.utils.model_manager_cli list
+
+# Visa modellinfo
+python -m src.utils.model_manager_cli info kimi-k2
+
+# Visa modeller för profil
+python -m src.utils.model_manager_cli profile snabb
+
+# Filtrera modeller
+python -m src.utils.model_manager_cli list --provider groq --streaming
 ```
 
 ### AI Provider Jämförelse
 
-| Profil | Provider | Modell | Tid | Streaming | Användning |
-|--------|----------|--------|-----|-----------|------------|
+| Profil | Provider | Primär Modell | Tid | Streaming | Användning |
+|--------|----------|---------------|-----|-----------|------------|
 | **Snabb** | Groq | Kimi K2 | < 2s | ✅ Ja | Enkla frågor, real-time |
-| **Smart** | xAI | Grok | 3-7s | ❌ Nej | Djup analys, komplexa frågor |
+| **Smart** | xAI | Grok Beta | 3-7s | ❌ Nej | Djup analys, komplexa frågor |
 | **Privat** | Lokal | Regelbaserad | 5-15s | ❌ Nej | Offline, GDPR-strikt |
 
 ### Automatisk Fallback
 ```
-Groq Kimi K2 (försök primär)
+Primär Modell (ex. Groq Kimi K2)
     ↓ (om fel)
-xAI Grok (fallback)
+Fallback 1 (ex. xAI Grok)
     ↓ (om fel)
-Lokal AI (sista utväg - fungerar alltid)
+Fallback 2 (Lokal AI - fungerar alltid)
 ```
 
-**Läs mer:** Se `GROQ_QUICKSTART.md` för detaljerad guide!
+**Läs mer:** Se `docs/MODEL_CONFIGURATION.md` för fullständig guide!
 
 ## 🔒 Säkerhet och GDPR
 
@@ -453,7 +486,9 @@ MIT License - Se [LICENSE](LICENSE) för detaljer.
 ### Dokumentation
 - **API Docs**: http://localhost:8000/dokumentation
 - **Redoc**: http://localhost:8000/api-doc
-- **GitHub Wiki**: [Detaljerad dokumentation]
+- **Model Configuration**: `docs/MODEL_CONFIGURATION.md`
+- **Coding Guidelines**: `CODING_GUIDELINES.md`
+- **Testing Guide**: `TESTING.md`
 
 ### Kontakt
 - **Issues**: GitHub Issues för buggar och funktioner
