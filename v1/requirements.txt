@@ -18,6 +18,10 @@ playwright>=1.40.0  # Headless browser automation
 beautifulsoup4==4.12.3  # HTML parsing (included in crawlee)
 parsel>=1.8.1  # CSS/XPath selectors (included in crawlee)
 
+# OSINT Tools
+holehe>=1.6.0  # Email OSINT tool
+trio>=0.24.0  # Async I/O for holehe
+
 # Database
 sqlalchemy==2.0.35
 alembic==1.13.3

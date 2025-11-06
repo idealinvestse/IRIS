@@ -1,0 +1,32 @@
+# Netlify Configuration for IRIS v6.0
+# Note: FastAPI applications require a server runtime
+# This configuration is for reference only
+
+[build]
+  # FastAPI apps cannot be deployed directly to Netlify
+  # Netlify is for static sites and serverless functions
+  # For FastAPI deployment, use:
+  # - Heroku
+  # - Railway
+  # - Render
+  # - AWS Lambda (with Mangum adapter)
+  # - Google Cloud Run
+  # - Azure App Service
+  # - DigitalOcean App Platform
+  
+  publish = "dist"
+  command = "echo 'FastAPI requires a server runtime'"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[context.production]
+  environment = { NODE_ENV = "production" }
+
+[context.deploy-preview]
+  environment = { NODE_ENV = "development" }
+
+[context.branch-deploy]
+  environment = { NODE_ENV = "development" }

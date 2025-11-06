@@ -1,0 +1,48 @@
+# IRIS v6.0 - Holehe OSINT Configuration
+
+holehe_osint:
+  # General settings
+  enabled: true
+  timeout_seconds: 30
+  max_concurrent_checks: 10
+  retry_on_rate_limit: false
+  
+  # Bulk checking
+  max_emails_per_bulk: 100
+  concurrent_email_checks: 5
+  
+  # Privacy & GDPR
+  # Holehe only uses public "forgot password" APIs
+  # No alerts sent to target email
+  respect_rate_limits: true
+  log_checked_emails: false  # Don't log emails for privacy
+  
+  # Module filtering
+  # Leave empty to check all modules
+  default_modules: []
+  # Example: ["twitter", "instagram", "facebook"]
+  
+  # Categories to check (if default_modules is empty)
+  check_categories:
+    - social_media
+    - professional
+    - gaming
+    - shopping
+    - communication
+    - entertainment
+  
+  # Rate limiting protection
+  delay_between_checks: 0.5  # Seconds between module checks
+  delay_between_emails: 2.0  # Seconds between email checks
+  
+  # Result storage
+  store_results: true
+  results_path: "data/holehe_osint"
+  export_format: "json"  # json, csv
+  
+  # Risk scoring
+  risk_scoring:
+    enabled: true
+    points_per_account: 5
+    high_risk_threshold: 50
+    critical_risk_threshold: 75

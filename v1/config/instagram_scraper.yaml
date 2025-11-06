@@ -1,0 +1,39 @@
+# IRIS v6.0 - Instagram Scraper Configuration
+
+instagram_scraper:
+  # Scraping settings
+  max_posts_per_profile: 50
+  max_concurrent_downloads: 5
+  request_delay_min: 2
+  request_delay_max: 5
+  
+  # Browser settings
+  use_playwright: true
+  headless: true
+  browser_type: chromium
+  timeout_seconds: 30
+  
+  # Storage settings
+  download_images: true
+  download_videos: false
+  image_quality: high  # high, medium, low
+  storage_path: "data/instagram"
+  create_metadata_json: true
+  
+  # Rate limiting
+  max_requests_per_minute: 10
+  max_requests_per_hour: 100
+  
+  # Privacy & GDPR
+  respect_private_profiles: true
+  scrape_only_public: true
+  retention_days: 30
+  store_comments: false  # Comments may contain PII
+  
+  # Retry settings
+  max_retries: 3
+  retry_delay: 2
+  backoff_multiplier: 2
+  
+  # User agent
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
